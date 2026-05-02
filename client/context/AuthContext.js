@@ -37,6 +37,9 @@ export const AuthProvider = ({ children }) => {
             await AsyncStorage.setItem('user', JSON.stringify(userData));
         } catch (e) {
             console.error('Failed to refresh user', e);
+            if (e.response && e.response.status === 401) {
+                logout(); // Token expired, force user to log in again
+            }
         }
     };
 
