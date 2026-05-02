@@ -7,7 +7,6 @@ import { LogBox } from 'react-native';
 
 LogBox.ignoreLogs([
   'props.pointerEvents is deprecated',
-  '[expo-av]: Expo AV has been deprecated',
   '"textShadow*" style props are deprecated',
   '"shadow*" style props are deprecated',
 ]);
