@@ -76,9 +76,7 @@ const styles = StyleSheet.create({
         color: '#fff',
         textAlign: 'center',
         marginBottom: 25,
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 10
+        textShadow: '-1px 1px 10px rgba(0, 0, 0, 0.75)',
     },
     buttonContainer: {
         flexDirection: 'row',

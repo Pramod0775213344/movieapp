@@ -5,7 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { LogBox } from 'react-native';
 
-LogBox.ignoreLogs(['props.pointerEvents is deprecated']);
+LogBox.ignoreLogs([
+  'props.pointerEvents is deprecated',
+  '[expo-av]: Expo AV has been deprecated',
+  '"textShadow*" style props are deprecated',
+  '"shadow*" style props are deprecated',
+]);
 
 import { AuthProvider, AuthContext } from '@/context/AuthContext';
 

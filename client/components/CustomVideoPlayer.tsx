@@ -126,7 +126,7 @@ export default function CustomVideoPlayer({ videoUrl, title, onBack }: CustomVid
             </Pressable>
 
             {/* Overlay Controls */}
-            <Animated.View style={[styles.controlsOverlay, animatedControlsStyle]} pointerEvents={showControls ? 'auto' : 'none'}>
+            <Animated.View style={[styles.controlsOverlay, animatedControlsStyle, { pointerEvents: showControls ? 'auto' : 'none' as any }]}>
                 {/* Top Bar */}
                 <View style={styles.topBar}>
                     <Pressable onPress={onBack} style={styles.iconButton}>
