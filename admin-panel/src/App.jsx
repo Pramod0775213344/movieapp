@@ -98,39 +98,100 @@ function App() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadInfo, setUploadInfo] = useState('');
 
+  const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
   const handleUpload = async (e) => {
     e.preventDefault();
     setLoading(true);
     setUploadProgress(0);
-    setUploadInfo('Handshaking with Cloudflare R2...');
+    setUploadInfo('Preparing intelligent chunked upload...');
 
     try {
       const authHeaders = { Authorization: `Bearer ${localStorage.getItem('adminToken')}` };
       let videoUrl = '';
       let posterUrl = formData.tmdbPosterPath;
 
-      // 1. If video file selected, upload DIRECTLY to R2 using Pre-signed URL
+      // 1. Resumable Multipart Upload Logic
       if (videoFile) {
-        setUploadInfo('Requesting secure upload tunnel...');
-        const urlRes = await axios.post(`${API_BASE_URL}/admin/get-upload-url`, {
-          fileName: videoFile.name,
-          fileType: videoFile.type,
-          folder: 'videos'
-        }, { headers: authHeaders });
+        const fileId = `${videoFile.name}_${videoFile.size}`;
+        const cacheKey = `uploadState_${fileId}`;
+        let uploadState = JSON.parse(localStorage.getItem(cacheKey));
+        
+        let uploadId, key;
+        let uploadedParts = [];
 
-        const { uploadUrl, publicUrl } = urlRes.data;
-        videoUrl = publicUrl;
+        if (uploadState && uploadState.uploadId) {
+          setUploadInfo('Resuming previous upload session...');
+          uploadId = uploadState.uploadId;
+          key = uploadState.key;
+          uploadedParts = uploadState.parts || [];
+        } else {
+          setUploadInfo('Starting new multipart upload...');
+          const startRes = await axios.post(`${API_BASE_URL}/admin/multipart/start`, {
+            fileName: videoFile.name,
+            fileType: videoFile.type,
+            folder: 'videos'
+          }, { headers: authHeaders });
+          
+          uploadId = startRes.data.uploadId;
+          key = startRes.data.key;
+          localStorage.setItem(cacheKey, JSON.stringify({ uploadId, key, parts: [] }));
+        }
 
-        setUploadInfo('Streaming data to Cloudflare R2...');
-        await axios.put(uploadUrl, videoFile, {
-          headers: { 'Content-Type': videoFile.type },
-          onUploadProgress: (progressEvent) => {
-            const { loaded, total } = progressEvent;
-            const percent = Math.floor((loaded * 100) / total);
-            setUploadProgress(percent);
-            setUploadInfo(`Syncing: ${(loaded / (1024 * 1024)).toFixed(2)}MB / ${(total / (1024 * 1024)).toFixed(2)}MB`);
+        const totalChunks = Math.ceil(videoFile.size / CHUNK_SIZE);
+        
+        for (let i = 0; i < totalChunks; i++) {
+          const partNumber = i + 1;
+          
+          // Skip if already uploaded in a previous session
+          if (uploadedParts.find(p => p.PartNumber === partNumber)) {
+             setUploadProgress(Math.floor((partNumber / totalChunks) * 100));
+             continue;
           }
-        });
+
+          setUploadInfo(`Uploading chunk ${partNumber} of ${totalChunks}...`);
+          
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, videoFile.size);
+          const chunk = videoFile.slice(start, end);
+
+          let retries = 3;
+          let chunkUploaded = false;
+
+          while (retries > 0 && !chunkUploaded) {
+            try {
+               const urlRes = await axios.post(`${API_BASE_URL}/admin/multipart/get-url`, {
+                 uploadId, key, partNumber
+               }, { headers: authHeaders });
+
+               const uploadRes = await axios.put(urlRes.data.uploadUrl, chunk, {
+                 headers: { 'Content-Type': videoFile.type }
+               });
+
+               const etag = uploadRes.headers.etag;
+               uploadedParts.push({ PartNumber: partNumber, ETag: etag });
+               
+               // Save progress to localStorage
+               localStorage.setItem(cacheKey, JSON.stringify({ uploadId, key, parts: uploadedParts }));
+               
+               setUploadProgress(Math.floor((partNumber / totalChunks) * 100));
+               chunkUploaded = true;
+            } catch (chunkErr) {
+               retries--;
+               if (retries === 0) throw new Error(`Network completely failed at chunk ${partNumber}`);
+               setUploadInfo(`Network error. Retrying chunk ${partNumber} (${retries} attempts left)...`);
+               await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retrying
+            }
+          }
+        }
+
+        setUploadInfo('Assembling chunks in Cloudflare R2...');
+        const completeRes = await axios.post(`${API_BASE_URL}/admin/multipart/complete`, {
+           uploadId, key, parts: uploadedParts
+        }, { headers: authHeaders });
+        
+        videoUrl = completeRes.data.publicUrl;
+        localStorage.removeItem(cacheKey); // Clean up tracking memory
       }
 
       // 2. Finalize: Save metadata to Database

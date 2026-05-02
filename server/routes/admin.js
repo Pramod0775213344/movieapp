@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const { supabase, supabaseAdmin } = require('../supabaseClient');
 const axios = require('axios');
@@ -118,24 +118,69 @@ const uploadToR2 = async (file, folder) => {
     return `${process.env.R2_PUBLIC_CUSTOM_DOMAIN}/${fileName}`;
 };
 
-// NEW: Generate Pre-signed URL for Direct Upload
-router.post('/get-upload-url', adminAuth, async (req, res) => {
+// 1. Start Multipart Upload
+router.post('/multipart/start', adminAuth, async (req, res) => {
     try {
         const { fileName, fileType, folder } = req.body;
         const key = `${folder}/${Date.now()}-${fileName}`;
         
-        const command = new PutObjectCommand({
+        const command = new CreateMultipartUploadCommand({
             Bucket: process.env.R2_BUCKET_NAME,
             Key: key,
             ContentType: fileType,
         });
 
-        const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour
-        const publicUrl = `${process.env.R2_PUBLIC_CUSTOM_DOMAIN}/${key}`;
-        
-        res.json({ uploadUrl, publicUrl, key });
+        const multipartUpload = await s3Client.send(command);
+        res.json({ uploadId: multipartUpload.UploadId, key });
     } catch (err) {
-        res.status(500).json({ message: 'Failed to generate upload URL' });
+        console.error('Multipart start error:', err);
+        res.status(500).json({ message: 'Failed to start multipart upload' });
+    }
+});
+
+// 2. Get Pre-signed URL for a specific chunk
+router.post('/multipart/get-url', adminAuth, async (req, res) => {
+    try {
+        const { uploadId, key, partNumber } = req.body;
+        
+        const command = new UploadPartCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+            UploadId: uploadId,
+            PartNumber: partNumber,
+        });
+
+        const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+        res.json({ uploadUrl });
+    } catch (err) {
+        console.error('Get part URL error:', err);
+        res.status(500).json({ message: 'Failed to generate part URL' });
+    }
+});
+
+// 3. Complete Multipart Upload
+router.post('/multipart/complete', adminAuth, async (req, res) => {
+    try {
+        const { uploadId, key, parts } = req.body;
+        
+        const command = new CompleteMultipartUploadCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+            UploadId: uploadId,
+            MultipartUpload: {
+                Parts: parts.map(p => ({
+                    ETag: p.ETag,
+                    PartNumber: p.PartNumber
+                }))
+            }
+        });
+
+        await s3Client.send(command);
+        const publicUrl = `${process.env.R2_PUBLIC_CUSTOM_DOMAIN}/${key}`;
+        res.json({ publicUrl });
+    } catch (err) {
+        console.error('Multipart complete error:', err);
+        res.status(500).json({ message: 'Failed to complete multipart upload' });
     }
 });
 
