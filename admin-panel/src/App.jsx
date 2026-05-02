@@ -89,9 +89,15 @@ function App() {
     setSelectedItem(item);
   };
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadInfo, setUploadInfo] = useState('');
+
   const handleUpload = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setUploadProgress(0);
+    setUploadInfo('Preparing secure cloud tunnel...');
+
     const data = new FormData();
     Object.keys(formData).forEach(key => data.append(key, formData[key]));
     if (videoFile) data.append('video', videoFile);
@@ -99,14 +105,28 @@ function App() {
     const endpoint = activeTab === 'movies' ? '/admin/upload' : '/admin/tv-series/create';
     try {
       await axios.post(`${API_BASE_URL}${endpoint}`, data, {
-        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+        headers: { 
+          'Content-Type': 'multipart/form-data', 
+          Authorization: `Bearer ${localStorage.getItem('adminToken')}` 
+        },
+        onUploadProgress: (progressEvent) => {
+          const { loaded, total } = progressEvent;
+          const percent = Math.floor((loaded * 100) / total);
+          setUploadProgress(percent);
+          setUploadInfo(`${(loaded / (1024 * 1024)).toFixed(2)}MB of ${(total / (1024 * 1024)).toFixed(2)}MB synced`);
+        }
       });
       alert('Content Published to R2 Successfully!');
       setSelectedItem(null);
+      setVideoFile(null);
+      setUploadProgress(0);
       fetchAllData();
       setSearchQuery('');
       setSearchResults([]);
-    } catch (err) { alert('Upload failed'); }
+    } catch (err) { 
+      console.error('Upload error:', err.response?.data || err.message);
+      alert('Upload failed: ' + (err.response?.data?.message || err.message)); 
+    }
     finally { setLoading(false); }
   };
 
@@ -271,7 +291,22 @@ function App() {
                 </div>
                 <img src={formData.tmdbPosterPath} style={{width: '120px', borderRadius: '16px', border: '1px solid var(--border)'}} alt="" />
               </div>
-              <button type="submit" className="btn-saas" style={{width: '100%', marginTop: '30px', justifyContent: 'center', color:'#fff'}} disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : 'Start Cloud Upload'}</button>
+
+              {loading && (
+                <div style={{marginTop: '20px'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px'}}>
+                    <span style={{color: 'var(--primary)', fontWeight: '700'}}>{uploadProgress}% Uploaded</span>
+                    <span style={{color: '#666'}}>{uploadInfo}</span>
+                  </div>
+                  <div style={{width: '100%', height: '8px', background: '#222', borderRadius: '10px', overflow: 'hidden'}}>
+                    <div style={{width: `${uploadProgress}%`, height: '100%', background: 'var(--primary)', transition: 'width 0.3s ease'}}></div>
+                  </div>
+                </div>
+              )}
+
+              <button type="submit" className="btn-saas" style={{width: '100%', marginTop: '30px', justifyContent: 'center', color:'#fff'}} disabled={loading}>
+                {loading ? <Loader2 className="animate-spin" /> : 'Start Cloud Upload'}
+              </button>
             </form>
           </div>
         </div>

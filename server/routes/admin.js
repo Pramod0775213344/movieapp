@@ -5,6 +5,7 @@ const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const supabase = require('../supabaseClient');
 const axios = require('axios');
+const fs = require('fs');
 
 // Cloudflare R2 Client Config
 const s3Client = new S3Client({
@@ -16,23 +17,41 @@ const s3Client = new S3Client({
     },
 });
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = './uploads/tmp';
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+const upload = multer({ 
+    storage,
+    limits: { fileSize: 50 * 1024 * 1024 * 1024 } // 50GB limit
+});
 
-// Helper function to upload to R2
+// Helper function to upload to R2 using Stream
 const uploadToR2 = async (file, folder) => {
     const fileName = `${folder}/${Date.now()}-${file.originalname}`;
+    const fileStream = fs.createReadStream(file.path);
+    
     const upload = new Upload({
         client: s3Client,
         params: {
             Bucket: process.env.R2_BUCKET_NAME,
             Key: fileName,
-            Body: file.buffer,
+            Body: fileStream,
             ContentType: file.mimetype,
         },
     });
 
     await upload.done();
+    
+    // Cleanup temporary file
+    fs.unlinkSync(file.path);
+    
     return `${process.env.R2_PUBLIC_CUSTOM_DOMAIN}/${fileName}`;
 };
 
