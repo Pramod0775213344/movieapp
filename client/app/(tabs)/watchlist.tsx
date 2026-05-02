@@ -25,7 +25,7 @@ const WatchlistScreen = () => {
         setWatchlist(user?.watchlist || []);
     }, [user?.watchlist]);
 
-        const SERVER_IP = '192.168.19.21';
+    const renderItem = ({ item, index }) => {
         const BACKEND_URL = 'https://movieapp-production-8fce.up.railway.app';
         const posterUrl = item.poster_path?.startsWith('http') 
             ? item.poster_path 
