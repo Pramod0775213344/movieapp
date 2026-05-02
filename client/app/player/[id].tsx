@@ -18,11 +18,10 @@ const VideoPlayerScreen = () => {
     const controlsOpacity = useSharedValue(1);
 
     // Sync with the same IP used in api/index.js
-    // Sync with the same IP used in api/index.js
-    const SERVER_IP = '192.168.19.21';
+    const BACKEND_URL = 'https://movieapp-production-8fce.up.railway.app';
     // Handle Cloudinary/R2 URLs vs Local paths
     const videoSource = isCustom 
-        ? (videoPath.startsWith('http') ? videoPath : `http://${SERVER_IP}:5000/${videoPath}`)
+        ? (videoPath.startsWith('http') ? videoPath : `${BACKEND_URL}/${videoPath}`)
         : "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4";
 
     useEffect(() => {

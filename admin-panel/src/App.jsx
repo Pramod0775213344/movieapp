@@ -6,8 +6,8 @@ import {
 } from 'lucide-react';
 import './App.css';
 
-// Synchronized with Server IP for cross-device access
-const API_BASE_URL = 'http://192.168.19.21:5000/api';
+// Synchronized with Live Railway Server
+const API_BASE_URL = 'https://movieapp-production-8fce.up.railway.app/api';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
