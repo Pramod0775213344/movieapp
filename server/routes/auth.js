@@ -22,7 +22,11 @@ router.post('/register', async (req, res) => {
 
         if (profileError) return res.status(400).json({ message: profileError.message });
 
-        res.status(201).json({ message: 'User registered successfully', user: { id: authData.user.id, username, email } });
+        res.status(201).json({ 
+            message: 'User registered successfully', 
+            token: authData.session?.access_token || null,
+            user: { id: authData.user.id, username, email } 
+        });
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
     }

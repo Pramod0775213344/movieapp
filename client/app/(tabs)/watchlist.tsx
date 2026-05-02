@@ -25,23 +25,29 @@ const WatchlistScreen = () => {
         setWatchlist(user?.watchlist || []);
     }, [user?.watchlist]);
 
-    const renderItem = ({ item, index }) => (
-        <Animated.View 
-            entering={FadeInDown.delay(index * 100).duration(600)}
-            layout={Layout.springify()}
-            style={styles.movieCard}
-        >
-            <Pressable 
-                style={({ pressed }) => [
-                    { flex: 1 },
-                    pressed && { transform: [{ scale: 0.98 }] }
-                ]}
-                onPress={() => router.push(`/movie/${item.movieId}`)}
+        const SERVER_IP = '192.168.19.21';
+        const BACKEND_URL = 'https://movieapp-production-8fce.up.railway.app';
+        const posterUrl = item.poster_path?.startsWith('http') 
+            ? item.poster_path 
+            : `https://image.tmdb.org/t/p/w500${item.poster_path}`;
+
+        return (
+            <Animated.View 
+                entering={FadeInDown.delay(index * 100).duration(600)}
+                layout={Layout.springify()}
+                style={styles.movieCard}
             >
-                <Image 
-                    source={{ uri: `https://image.tmdb.org/t/p/w500${item.posterPath}` }} 
-                    style={styles.poster}
-                />
+                <Pressable 
+                    style={({ pressed }) => [
+                        { flex: 1 },
+                        pressed && { transform: [{ scale: 0.98 }] }
+                    ]}
+                    onPress={() => router.push(`/movie/${item.movieId}`)}
+                >
+                    <Image 
+                        source={{ uri: posterUrl }} 
+                        style={styles.poster}
+                    />
                 <View style={styles.movieInfo}>
                     <Text style={styles.movieTitle} numberOfLines={2}>{item.title}</Text>
                     <View style={styles.playBtn}>

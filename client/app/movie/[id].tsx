@@ -39,18 +39,16 @@ const MovieDetailScreen = () => {
 
     const toggleWatchlist = async () => {
         try {
-            if (inWatchlist) {
-                await api.delete(`/user/watchlist/${id}`);
-            } else {
-                await api.post('/user/watchlist', {
-                    movieId: id,
+            const response = await api.post('/user/watchlist/toggle', {
+                movie: {
+                    id: id,
                     title: movie.title,
-                    posterPath: movie.poster_path
-                });
-            }
+                    poster_path: movie.isCustom ? movie.poster_url : movie.poster_path
+                }
+            });
             setInWatchlist(!inWatchlist);
         } catch (err) {
-            console.error(err);
+            console.error('Watchlist Error:', err);
         }
     };
 
