@@ -20,28 +20,21 @@ export default function HomeScreen() {
 
     const fetchData = async () => {
         try {
-            const [trendingRes, popularRes, exclusivesRes] = await Promise.all([
-                api.get('/movies/trending'),
-                api.get('/movies/popular'),
-                api.get('/admin/movies').catch(() => ({ data: [] }))
-            ]);
+            const response = await api.get('/admin/movies');
+            const customMovies = response.data.map(m => ({
+                ...m,
+                id: m._id,
+                isCustom: true,
+                poster_path: m.poster_url || m.posterPath
+            }));
             
-            setTrending(trendingRes.data);
-            setPopular(popularRes.data);
-            setExclusives(exclusivesRes.data);
-            setFeatured(trendingRes.data[0]);
+            setExclusives(customMovies);
+            setTrending(customMovies.slice().reverse()); // Show recently added as trending
+            setPopular(customMovies);
+            setFeatured(customMovies[0] || null);
         } catch (err) {
             console.error('Fetch error:', err);
-            const mockMovies = [
-                { id: 1, title: 'Inception', poster_path: '/edvWebvMsI79S2j9vyL6qa9vSTU.jpg' },
-                { id: 2, title: 'Interstellar', poster_path: '/gEU2QniE6E77NI6vCU679iJuH7s.jpg' },
-                { id: 3, title: 'The Dark Knight', poster_path: '/qJ2tW6WMUDp9QmSJJivpUunD29x.jpg' },
-                { id: 4, title: 'Avatar', poster_path: '/jRXYjXuvqW7YpSqiGj2p2tPqtRi.jpg' },
-                { id: 5, title: 'Titanic', poster_path: '/9xj7rB6R7vOLQvGpAFBD9S3urZD.jpg' },
-            ];
-            setTrending(mockMovies);
-            setPopular(mockMovies);
-            setFeatured(mockMovies[0]);
+            setExclusives([]);
         } finally {
             setLoading(false);
         }
@@ -64,60 +57,46 @@ export default function HomeScreen() {
             </Animated.View>
 
             <View style={styles.content}>
-                {exclusives.length > 0 && (
-                    <Animated.View entering={FadeInUp.delay(200).duration(800)} layout={Layout.springify()}>
-                        <SectionHeader title="Exclusives on MovieApp" />
-                        <FlatList
-                            horizontal
-                            data={exclusives}
-                            keyExtractor={(item) => item._id}
-                            renderItem={({ item }) => (
-                                <MovieCard 
-                                    movie={{
-                                        id: item._id,
-                                        title: item.title,
-                                        poster_path: item.posterPath,
-                                        isCustom: true
-                                    }} 
-                                />
-                            )}
-                            showsHorizontalScrollIndicator={false}
-                        />
-                    </Animated.View>
+                {exclusives.length > 0 ? (
+                    <>
+                        <Animated.View entering={FadeInUp.delay(200).duration(800)} layout={Layout.springify()}>
+                            <SectionHeader title="Recently Added" />
+                            <FlatList
+                                horizontal
+                                data={trending}
+                                keyExtractor={(item) => item.id}
+                                renderItem={({ item }) => <MovieCard movie={item} />}
+                                showsHorizontalScrollIndicator={false}
+                            />
+                        </Animated.View>
+                        
+                        <Animated.View entering={FadeInUp.delay(400).duration(800)}>
+                            <SectionHeader title="Exclusive on MovieApp" />
+                            <FlatList
+                                horizontal
+                                data={exclusives}
+                                keyExtractor={(item) => item.id}
+                                renderItem={({ item }) => <MovieCard movie={item} />}
+                                showsHorizontalScrollIndicator={false}
+                            />
+                        </Animated.View>
+
+                        <Animated.View entering={FadeInUp.delay(600).duration(800)}>
+                            <SectionHeader title="Recommended for You" />
+                            <FlatList
+                                horizontal
+                                data={popular}
+                                keyExtractor={(item) => item.id}
+                                renderItem={({ item }) => <MovieCard movie={item} />}
+                                showsHorizontalScrollIndicator={false}
+                            />
+                        </Animated.View>
+                    </>
+                ) : (
+                    <View style={styles.emptyContainer}>
+                        <SectionHeader title="No Content Yet" />
+                    </View>
                 )}
-                
-                <Animated.View entering={FadeInUp.delay(400).duration(800)}>
-                    <SectionHeader title="Trending Now" />
-                    <FlatList
-                        horizontal
-                        data={trending}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => <MovieCard movie={item} />}
-                        showsHorizontalScrollIndicator={false}
-                    />
-                </Animated.View>
-
-                <Animated.View entering={FadeInUp.delay(600).duration(800)}>
-                    <SectionHeader title="Popular on MovieApp" />
-                    <FlatList
-                        horizontal
-                        data={popular}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => <MovieCard movie={item} />}
-                        showsHorizontalScrollIndicator={false}
-                    />
-                </Animated.View>
-
-                <Animated.View entering={FadeInUp.delay(800).duration(800)}>
-                    <SectionHeader title="New Releases" />
-                    <FlatList
-                        horizontal
-                        data={trending.slice().reverse()}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => <MovieCard movie={item} />}
-                        showsHorizontalScrollIndicator={false}
-                    />
-                </Animated.View>
             </View>
             <View style={{ height: 100 }} />
         </ScrollView>
