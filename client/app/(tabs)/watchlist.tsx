@@ -48,16 +48,17 @@ const WatchlistScreen = () => {
                         source={{ uri: posterUrl }} 
                         style={styles.poster}
                     />
-                <View style={styles.movieInfo}>
-                    <Text style={styles.movieTitle} numberOfLines={2}>{item.title}</Text>
-                    <View style={styles.playBtn}>
-                        <Play size={14} color="#000" fill="#000" />
-                        <Text style={styles.playText}>Watch Now</Text>
+                    <View style={styles.movieInfo}>
+                        <Text style={styles.movieTitle} numberOfLines={2}>{item.title}</Text>
+                        <View style={styles.playBtn}>
+                            <Play size={14} color="#000" fill="#000" />
+                            <Text style={styles.playText}>Watch Now</Text>
+                        </View>
                     </View>
-                </View>
-            </Pressable>
-        </Animated.View>
-    );
+                </Pressable>
+            </Animated.View>
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container}>
