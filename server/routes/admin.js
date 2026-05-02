@@ -205,7 +205,7 @@ router.post('/upload-metadata', adminAuth, async (req, res) => {
     try {
         const { title, description, genre, duration, videoUrl, posterUrl } = req.body;
         
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('movies')
             .insert([{
                 title,
@@ -242,7 +242,7 @@ router.post('/upload', adminAuth, upload.fields([
             posterUrl = await uploadToR2(req.files['poster'][0], 'posters');
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('movies')
             .insert([{
                 title,
@@ -270,7 +270,7 @@ router.get('/movies', async (req, res) => {
 
 // Delete movie
 router.delete('/movie/:id', adminAuth, async (req, res) => {
-    const { error } = await supabase.from('movies').delete().eq('id', req.params.id);
+    const { error } = await supabaseAdmin.from('movies').delete().eq('id', req.params.id);
     if (error) return res.status(500).json(error);
     res.json({ message: 'Movie deleted' });
 });
@@ -286,7 +286,7 @@ router.post('/tv-series/create', adminAuth, upload.single('poster'), async (req,
             posterUrl = await uploadToR2(req.file, 'posters');
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('tv_series')
             .insert([{ title, description, genres: genres.split(','), poster_url: posterUrl }])
             .select();
@@ -307,7 +307,7 @@ router.post('/tv-series/upload-episode', adminAuth, upload.single('video'), asyn
             videoUrl = await uploadToR2(req.file, 'videos');
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('episodes')
             .insert([{
                 series_id,
