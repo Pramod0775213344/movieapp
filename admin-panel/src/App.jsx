@@ -233,7 +233,8 @@ function App() {
       setSearchResults([]);
     } catch (err) { 
       console.error('Upload error:', err.response?.data || err.message);
-      alert('Upload failed: ' + (err.response?.data?.message || err.message)); 
+      const dbError = err.response?.data?.error ? `\nDatabase Error: ${err.response.data.error}` : '';
+      alert('Upload failed: ' + (err.response?.data?.message || err.message) + dbError); 
     }
     finally { setLoading(false); }
   };
