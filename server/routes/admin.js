@@ -163,12 +163,15 @@ router.post('/multipart/complete', adminAuth, async (req, res) => {
     try {
         const { uploadId, key, parts } = req.body;
         
+        // AWS S3 requires parts to be strictly ordered by PartNumber
+        const sortedParts = parts.sort((a, b) => a.PartNumber - b.PartNumber);
+
         const command = new CompleteMultipartUploadCommand({
             Bucket: process.env.R2_BUCKET_NAME,
             Key: key,
             UploadId: uploadId,
             MultipartUpload: {
-                Parts: parts.map(p => ({
+                Parts: sortedParts.map(p => ({
                     ETag: p.ETag,
                     PartNumber: p.PartNumber
                 }))
@@ -180,7 +183,7 @@ router.post('/multipart/complete', adminAuth, async (req, res) => {
         res.json({ publicUrl });
     } catch (err) {
         console.error('Multipart complete error:', err);
-        res.status(500).json({ message: 'Failed to complete multipart upload' });
+        res.status(500).json({ message: `Failed to assemble chunks in Cloudflare: ${err.message}` });
     }
 });
 
