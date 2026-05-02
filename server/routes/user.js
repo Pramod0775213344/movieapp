@@ -19,16 +19,27 @@ const auth = async (req, res, next) => {
 router.get('/profile', auth, async (req, res) => {
     try {
         console.log('Fetching profile for user:', req.user.id);
-        const { data, error } = await supabase
+        let { data, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', req.user.id)
             .single();
         
-        if (error) {
-            console.error('Supabase Profile Error:', error.message);
+        // SELF-HEALING: If profile doesn't exist, create it on the fly
+        if (error && error.code === 'PGRST116') {
+            console.log('Profile missing. Creating self-healing profile...');
+            const { data: newProfile, error: createError } = await supabase
+                .from('profiles')
+                .insert([{ id: req.user.id, username: req.user.email.split('@')[0] }])
+                .select()
+                .single();
+            
+            if (createError) throw createError;
+            data = newProfile;
+        } else if (error) {
             throw error;
         }
+
         res.json(data);
     } catch (err) {
         console.error('Profile Route Crash:', err.message);
