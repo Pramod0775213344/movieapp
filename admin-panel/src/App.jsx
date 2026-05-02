@@ -102,27 +102,47 @@ function App() {
     e.preventDefault();
     setLoading(true);
     setUploadProgress(0);
-    setUploadInfo('Preparing secure cloud tunnel...');
+    setUploadInfo('Handshaking with Cloudflare R2...');
 
-    const data = new FormData();
-    Object.keys(formData).forEach(key => data.append(key, formData[key]));
-    if (videoFile) data.append('video', videoFile);
-
-    const endpoint = activeTab === 'movies' ? '/admin/upload' : '/admin/tv-series/create';
     try {
-      await axios.post(`${API_BASE_URL}${endpoint}`, data, {
-        headers: { 
-          'Content-Type': 'multipart/form-data', 
-          Authorization: `Bearer ${localStorage.getItem('adminToken')}` 
-        },
-        onUploadProgress: (progressEvent) => {
-          const { loaded, total } = progressEvent;
-          const percent = Math.floor((loaded * 100) / total);
-          setUploadProgress(percent);
-          setUploadInfo(`${(loaded / (1024 * 1024)).toFixed(2)}MB of ${(total / (1024 * 1024)).toFixed(2)}MB synced`);
-        }
-      });
-      alert('Content Published to R2 Successfully!');
+      const authHeaders = { Authorization: `Bearer ${localStorage.getItem('adminToken')}` };
+      let videoUrl = '';
+      let posterUrl = formData.tmdbPosterPath;
+
+      // 1. If video file selected, upload DIRECTLY to R2 using Pre-signed URL
+      if (videoFile) {
+        setUploadInfo('Requesting secure upload tunnel...');
+        const urlRes = await axios.post(`${API_BASE_URL}/admin/get-upload-url`, {
+          fileName: videoFile.name,
+          fileType: videoFile.type,
+          folder: 'videos'
+        }, { headers: authHeaders });
+
+        const { uploadUrl, publicUrl } = urlRes.data;
+        videoUrl = publicUrl;
+
+        setUploadInfo('Streaming data to Cloudflare R2...');
+        await axios.put(uploadUrl, videoFile, {
+          headers: { 'Content-Type': videoFile.type },
+          onUploadProgress: (progressEvent) => {
+            const { loaded, total } = progressEvent;
+            const percent = Math.floor((loaded * 100) / total);
+            setUploadProgress(percent);
+            setUploadInfo(`Syncing: ${(loaded / (1024 * 1024)).toFixed(2)}MB / ${(total / (1024 * 1024)).toFixed(2)}MB`);
+          }
+        });
+      }
+
+      // 2. Finalize: Save metadata to Database
+      setUploadInfo('Finalizing system record...');
+      const endpoint = activeTab === 'movies' ? '/admin/upload-metadata' : '/admin/tv-series/create';
+      await axios.post(`${API_BASE_URL}${endpoint}`, {
+        ...formData,
+        videoUrl,
+        posterUrl
+      }, { headers: authHeaders });
+
+      alert('Content Published to MovieApp Pro Successfully!');
       setSelectedItem(null);
       setVideoFile(null);
       setUploadProgress(0);

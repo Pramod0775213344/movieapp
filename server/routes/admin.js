@@ -55,6 +55,8 @@ router.post('/make-me-admin', async (req, res) => {
     }
 });
 
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+
 // Helper function to upload to R2 using Stream
 const uploadToR2 = async (file, folder) => {
     const fileName = `${folder}/${Date.now()}-${file.originalname}`;
@@ -77,6 +79,27 @@ const uploadToR2 = async (file, folder) => {
     
     return `${process.env.R2_PUBLIC_CUSTOM_DOMAIN}/${fileName}`;
 };
+
+// NEW: Generate Pre-signed URL for Direct Upload
+router.post('/get-upload-url', adminAuth, async (req, res) => {
+    try {
+        const { fileName, fileType, folder } = req.body;
+        const key = `${folder}/${Date.now()}-${fileName}`;
+        
+        const command = new PutObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+            ContentType: fileType,
+        });
+
+        const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour
+        const publicUrl = `${process.env.R2_PUBLIC_CUSTOM_DOMAIN}/${key}`;
+        
+        res.json({ uploadUrl, publicUrl, key });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to generate upload URL' });
+    }
+});
 
 // Proxy TMDB Search
 router.get('/tmdb-search', async (req, res) => {
@@ -127,7 +150,31 @@ const adminAuth = async (req, res, next) => {
     }
 };
 
-// Upload Movie to Cloudflare R2
+// Finalize Movie Metadata (after direct upload)
+router.post('/upload-metadata', adminAuth, async (req, res) => {
+    try {
+        const { title, description, genre, duration, videoUrl, posterUrl } = req.body;
+        
+        const { data, error } = await supabase
+            .from('movies')
+            .insert([{
+                title,
+                description,
+                genre: genre.split(','),
+                duration: parseInt(duration),
+                video_url: videoUrl,
+                poster_url: posterUrl
+            }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ message: 'Movie record created', movie: data[0] });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to save movie record', error: err.message });
+    }
+});
+
+// Upload Movie to Cloudflare R2 (LEGACY - for small files)
 router.post('/upload', adminAuth, upload.fields([
     { name: 'video', maxCount: 1 },
     { name: 'poster', maxCount: 1 }
