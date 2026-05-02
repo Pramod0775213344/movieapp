@@ -1,194 +1,343 @@
 import React, { useState, useContext } from 'react';
-import { StyleSheet, View, Text, TextInput, Pressable, Image, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import {
+    StyleSheet, View, Text, TextInput, Pressable,
+    KeyboardAvoidingView, Platform, ActivityIndicator,
+    Dimensions, ImageBackground,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '@/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInUp, FadeIn, Layout } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
+import { Eye, EyeOff, Mail, Lock, Play } from 'lucide-react-native';
 
-const PRIMARY_COLOR = '#E50914';
+const { width, height } = Dimensions.get('window');
+const PRIMARY = '#E50914';
 
-const LoginScreen = () => {
+// Cinematic backdrop — a dark movie-themed image
+const BACKDROP = 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800&q=80';
+
+export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPass, setShowPass] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [focused, setFocused] = useState<'email' | 'password' | null>(null);
     const { login } = useContext(AuthContext);
     const router = useRouter();
 
     const handleLogin = async () => {
-        if (!email || !password) {
-            setError('Please fill in all fields');
-            return;
-        }
+        if (!email || !password) { setError('Please fill in all fields'); return; }
         setLoading(true);
         setError('');
         try {
             await login(email, password);
             router.replace('/(tabs)');
-        } catch (err) {
-            setError(err.response?.data?.message || 'Login failed. Please try again.');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Invalid email or password.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
+            style={styles.root}
         >
-            <LinearGradient
-                colors={['#050505', '#1a1a1a', '#050505']}
-                style={styles.gradient}
-            >
-                <View style={styles.content}>
-                    <Animated.View entering={FadeIn.delay(200).duration(1000)}>
-                        <Image 
-                            source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg' }} 
-                            style={styles.logo}
-                            resizeMode="contain"
-                        />
-                    </Animated.View>
-                    
-                    <Animated.Text entering={FadeInUp.delay(400).duration(800)} style={styles.title}>Sign In</Animated.Text>
+            {/* ── Cinematic Background ── */}
+            <ImageBackground source={{ uri: BACKDROP }} style={styles.backdrop} resizeMode="cover">
+                <LinearGradient
+                    colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.65)', '#000']}
+                    style={styles.overlay}
+                />
+            </ImageBackground>
 
-                    {error ? (
-                        <Animated.Text entering={FadeIn.duration(400)} style={styles.errorText}>
-                            {error}
-                        </Animated.Text>
-                    ) : null}
+            {/* ── Content ── */}
+            <View style={styles.content}>
 
-                    <Animated.View entering={FadeInUp.delay(600).duration(800)} style={styles.inputContainer}>
+                {/* Logo */}
+                <Animated.View entering={FadeInDown.delay(100).duration(700)} style={styles.logoWrapper}>
+                    <View style={styles.logoGlow} />
+                    <View style={styles.logoCircle}>
+                        <Play size={28} color="#fff" fill="#fff" />
+                    </View>
+                    <Text style={styles.logoText}>MovieApp</Text>
+                </Animated.View>
+
+                {/* Tagline */}
+                <Animated.Text entering={FadeInDown.delay(250).duration(600)} style={styles.tagline}>
+                    Unlimited Entertainment
+                </Animated.Text>
+
+                {/* Card */}
+                <Animated.View entering={FadeInUp.delay(350).duration(700)} style={styles.card}>
+                    <Text style={styles.cardTitle}>Sign In</Text>
+
+                    {/* Error */}
+                    {!!error && (
+                        <Animated.View entering={FadeIn.duration(300)} style={styles.errorBox}>
+                            <Text style={styles.errorText}>{error}</Text>
+                        </Animated.View>
+                    )}
+
+                    {/* Email */}
+                    <View style={[styles.inputRow, focused === 'email' && styles.inputRowFocused]}>
+                        <Mail size={18} color={focused === 'email' ? PRIMARY : '#555'} />
                         <TextInput
                             style={styles.input}
-                            placeholder="Email"
-                            placeholderTextColor="#666"
+                            placeholder="Email address"
+                            placeholderTextColor="#444"
                             value={email}
                             onChangeText={setEmail}
                             autoCapitalize="none"
                             keyboardType="email-address"
+                            onFocus={() => setFocused('email')}
+                            onBlur={() => setFocused(null)}
                         />
-                    </Animated.View>
+                    </View>
 
-                    <Animated.View entering={FadeInUp.delay(800).duration(800)} style={styles.inputContainer}>
+                    {/* Password */}
+                    <View style={[styles.inputRow, focused === 'password' && styles.inputRowFocused]}>
+                        <Lock size={18} color={focused === 'password' ? PRIMARY : '#555'} />
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, { flex: 1 }]}
                             placeholder="Password"
-                            placeholderTextColor="#666"
+                            placeholderTextColor="#444"
                             value={password}
                             onChangeText={setPassword}
-                            secureTextEntry
+                            secureTextEntry={!showPass}
+                            onFocus={() => setFocused('password')}
+                            onBlur={() => setFocused(null)}
                         />
-                    </Animated.View>
+                        <Pressable onPress={() => setShowPass(!showPass)} hitSlop={8}>
+                            {showPass
+                                ? <EyeOff size={18} color="#555" />
+                                : <Eye size={18} color="#555" />
+                            }
+                        </Pressable>
+                    </View>
 
-                    <Animated.View entering={FadeInUp.delay(1000).duration(800)}>
-                        <Pressable 
-                            style={({ pressed }) => [
-                                styles.button, 
-                                loading && styles.disabledButton,
-                                pressed && { transform: [{ scale: 0.98 }] }
-                            ]} 
-                            onPress={handleLogin}
-                            disabled={loading}
+                    {/* Sign In Button */}
+                    <Pressable
+                        style={({ pressed }) => [styles.btn, pressed && { opacity: 0.88, transform: [{ scale: 0.985 }] }, loading && { opacity: 0.7 }]}
+                        onPress={handleLogin}
+                        disabled={loading}
+                    >
+                        <LinearGradient
+                            colors={['#ff1f2e', PRIMARY, '#b30000']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.btnGradient}
                         >
-                            {loading ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <Text style={styles.buttonText}>Sign In</Text>
-                            )}
-                        </Pressable>
-                    </Animated.View>
+                            {loading
+                                ? <ActivityIndicator color="#fff" size="small" />
+                                : <Text style={styles.btnText}>Sign In</Text>
+                            }
+                        </LinearGradient>
+                    </Pressable>
 
-                    <Animated.View entering={FadeInUp.delay(1200).duration(800)}>
-                        <Pressable style={styles.linkButton} onPress={() => router.push('/register')}>
-                            <Text style={styles.linkText}>New to MovieApp? <Text style={styles.linkTextBold}>Sign up now.</Text></Text>
-                        </Pressable>
-                    </Animated.View>
-                </View>
-            </LinearGradient>
+                    {/* Divider */}
+                    <View style={styles.dividerRow}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>OR</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* Register Link */}
+                    <Pressable onPress={() => router.push('/register')} style={styles.registerLink}>
+                        <Text style={styles.registerText}>
+                            New to MovieApp?{'  '}
+                            <Text style={styles.registerBold}>Create account</Text>
+                        </Text>
+                    </Pressable>
+                </Animated.View>
+
+                {/* Bottom tagline */}
+                <Animated.Text entering={FadeInUp.delay(550).duration(600)} style={styles.bottomNote}>
+                    Stream movies & shows anytime, anywhere.
+                </Animated.Text>
+            </View>
         </KeyboardAvoidingView>
     );
-};
+}
 
 const styles = StyleSheet.create({
-    container: {
+    root: {
         flex: 1,
-        backgroundColor: '#050505',
+        backgroundColor: '#000',
     },
-    gradient: {
-        flex: 1,
+
+    // Background
+    backdrop: {
+        ...StyleSheet.absoluteFillObject,
+        width,
+        height,
     },
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+    },
+
+    // Content
     content: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: 30,
+        paddingHorizontal: 24,
     },
-    logo: {
-        width: 180,
-        height: 60,
-        alignSelf: 'center',
-        marginBottom: 60,
+
+    // Logo
+    logoWrapper: {
+        alignItems: 'center',
+        marginBottom: 10,
     },
-    title: {
-        fontSize: 34,
-        fontWeight: '900',
-        color: '#fff',
-        marginBottom: 35,
-        letterSpacing: -0.5,
+    logoGlow: {
+        position: 'absolute',
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: PRIMARY,
+        opacity: 0.2,
+        top: -4,
     },
-    inputContainer: {
-        backgroundColor: '#111',
-        borderRadius: 12,
-        marginBottom: 16,
-        height: 64,
-        justifyContent: 'center',
-        paddingHorizontal: 20,
-        borderWidth: 1,
-        borderColor: '#222',
-    },
-    input: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    button: {
-        backgroundColor: PRIMARY_COLOR,
-        height: 60,
-        borderRadius: 12,
+    logoCircle: {
+        width: 68,
+        height: 68,
+        borderRadius: 34,
+        backgroundColor: PRIMARY,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 25,
-        boxShadow: '0px 4px 10px rgba(229, 9, 20, 0.3)',
-        elevation: 5,
+        marginBottom: 12,
     },
-    disabledButton: {
-        opacity: 0.7,
-    },
-    buttonText: {
+    logoText: {
         color: '#fff',
-        fontSize: 18,
-        fontWeight: '800',
+        fontSize: 26,
+        fontWeight: '900',
+        letterSpacing: -0.5,
+    },
+    tagline: {
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: 13,
+        textAlign: 'center',
+        letterSpacing: 2,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        marginBottom: 32,
+    },
+
+    // Card
+    card: {
+        backgroundColor: 'rgba(12,12,12,0.92)',
+        borderRadius: 24,
+        padding: 28,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.07)',
+    },
+    cardTitle: {
+        color: '#fff',
+        fontSize: 26,
+        fontWeight: '900',
+        letterSpacing: -0.5,
+        marginBottom: 22,
+    },
+
+    // Error
+    errorBox: {
+        backgroundColor: 'rgba(229,9,20,0.12)',
+        borderRadius: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(229,9,20,0.3)',
     },
     errorText: {
-        color: PRIMARY_COLOR,
-        marginBottom: 20,
-        fontSize: 14,
+        color: '#ff6b6b',
+        fontSize: 13,
         fontWeight: '600',
         textAlign: 'center',
     },
-    linkButton: {
-        marginTop: 35,
+
+    // Inputs
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: '#111',
+        borderRadius: 14,
+        paddingHorizontal: 18,
+        height: 58,
+        marginBottom: 14,
+        borderWidth: 1.5,
+        borderColor: '#222',
+    },
+    inputRowFocused: {
+        borderColor: PRIMARY,
+        backgroundColor: '#141414',
+    },
+    input: {
+        flex: 1,
+        color: '#fff',
+        fontSize: 15,
+        fontWeight: '500',
+    },
+
+    // Button
+    btn: {
+        borderRadius: 14,
+        overflow: 'hidden',
+        marginTop: 8,
+    },
+    btnGradient: {
+        height: 58,
+        justifyContent: 'center',
         alignItems: 'center',
     },
-    linkText: {
-        color: '#666',
-        fontSize: 14,
-        fontWeight: '600',
+    btnText: {
+        color: '#fff',
+        fontSize: 17,
+        fontWeight: '800',
+        letterSpacing: 0.5,
     },
-    linkTextBold: {
+
+    // Divider
+    dividerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 22,
+        gap: 12,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#222',
+    },
+    dividerText: {
+        color: '#444',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 1,
+    },
+
+    // Register
+    registerLink: {
+        alignItems: 'center',
+    },
+    registerText: {
+        color: '#555',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    registerBold: {
         color: '#fff',
         fontWeight: '800',
-    }
-});
+    },
 
-export default LoginScreen;
+    // Bottom note
+    bottomNote: {
+        color: 'rgba(255,255,255,0.25)',
+        fontSize: 12,
+        textAlign: 'center',
+        marginTop: 28,
+        letterSpacing: 0.5,
+    },
+});
