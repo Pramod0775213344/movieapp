@@ -18,16 +18,21 @@ const auth = async (req, res, next) => {
 // Get Full Profile
 router.get('/profile', auth, async (req, res) => {
     try {
+        console.log('Fetching profile for user:', req.user.id);
         const { data, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', req.user.id)
             .single();
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase Profile Error:', error.message);
+            throw error;
+        }
         res.json(data);
     } catch (err) {
-        res.status(500).json({ message: 'Error fetching profile' });
+        console.error('Profile Route Crash:', err.message);
+        res.status(500).json({ message: 'Error fetching profile', error: err.message });
     }
 });
 
