@@ -23,7 +23,7 @@ export default function HomeScreen() {
             const response = await api.get('/admin/movies');
             const customMovies = response.data.map(m => ({
                 ...m,
-                id: m._id,
+                id: m.id || m._id,
                 isCustom: true,
                 poster_path: m.poster_url || m.posterPath
             }));
