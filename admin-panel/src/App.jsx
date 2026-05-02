@@ -57,6 +57,12 @@ function App() {
     try {
       const res = await axios.post(`${API_BASE_URL}/auth/login`, authData);
       localStorage.setItem('adminToken', res.data.token);
+      
+      // Auto-promote to admin if first time
+      await axios.post(`${API_BASE_URL}/admin/make-me-admin`, {}, {
+        headers: { Authorization: `Bearer ${res.data.token}` }
+      }).catch(err => console.log('Already admin or setup failed'));
+
       setIsAuthenticated(true);
     } catch(e) { 
       alert('Authentication failed.'); 

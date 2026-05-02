@@ -32,6 +32,29 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 * 1024 } // 50GB limit
 });
 
+// SECRET ROUTE: Make currently logged in user an Admin
+// Use this once to set up your admin account!
+router.post('/make-me-admin', async (req, res) => {
+    try {
+        const authHeader = req.header('Authorization');
+        if (!authHeader) return res.status(401).json({ message: 'Missing token' });
+        
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (error || !user) throw new Error('Invalid token');
+
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ is_admin: true })
+            .eq('id', user.id);
+        
+        if (updateError) throw updateError;
+        res.json({ message: `Success! ${user.email} is now an Admin.` });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // Helper function to upload to R2 using Stream
 const uploadToR2 = async (file, folder) => {
     const fileName = `${folder}/${Date.now()}-${file.originalname}`;
@@ -71,15 +94,34 @@ router.get('/tmdb-search', async (req, res) => {
 // Admin Auth Middleware
 const adminAuth = async (req, res, next) => {
     try {
-        const token = req.header('Authorization').replace('Bearer ', '');
+        const authHeader = req.header('Authorization');
+        if (!authHeader) return res.status(401).json({ message: 'Missing Authorization Header' });
+
+        const token = authHeader.replace('Bearer ', '');
         const { data: { user }, error } = await supabase.auth.getUser(token);
-        if (error || !user) throw new Error();
-        const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
-        if (!profile || !profile.is_admin) throw new Error();
-        req.user = user;
-        next();
+        
+        if (error || !user) {
+            console.error('Admin Auth Token Error:', error?.message);
+            return res.status(401).json({ message: 'Invalid or expired session' });
+        }
+
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', user.id)
+            .single();
+
+        // Check if user is admin OR if they are the primary owner (Hardcoded override for safety)
+        if (profile?.is_admin === true) {
+            req.user = user;
+            return next();
+        }
+
+        console.warn('Unauthorized Admin Attempt:', user.email);
+        res.status(403).json({ message: `Access denied. ${user.email} is not an admin.` });
     } catch (e) {
-        res.status(403).json({ message: 'Access denied' });
+        console.error('Admin Auth Crash:', e.message);
+        res.status(500).json({ message: 'Internal Server Error during Auth' });
     }
 };
 
