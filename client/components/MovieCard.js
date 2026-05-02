@@ -1,21 +1,26 @@
 import React from 'react';
-import { StyleSheet, Pressable, Image, View } from 'react-native';
+import { StyleSheet, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 
 const MovieCard = ({ movie, width = 120, height = 180 }) => {
     const router = useRouter();
 
-    const SERVER_IP = '192.168.19.21';
+    const BACKEND_URL = 'https://movieapp-production-8fce.up.railway.app';
+    
+    // Support for both R2 and TMDB posters
     const posterUrl = movie.isCustom
-        ? (movie.poster_path.startsWith('http') ? movie.poster_path : `http://${SERVER_IP}:5000/${movie.poster_path}`)
+        ? (movie.poster_path?.startsWith('http') ? movie.poster_path : `${BACKEND_URL}/${movie.poster_path}`)
         : (movie.poster_path 
             ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
             : 'https://via.placeholder.com/500x750?text=No+Poster');
 
+    // Handle both TMDB 'id' and MongoDB '_id'
+    const movieId = movie.id || movie._id;
+
     return (
         <Pressable 
             style={[styles.container, { width, height }]}
-            onPress={() => router.push(`/movie/${movie.id}`)}
+            onPress={() => router.push(`/movie/${movieId}`)}
         >
             <Image 
                 source={{ uri: posterUrl }} 

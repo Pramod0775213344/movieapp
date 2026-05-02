@@ -19,10 +19,15 @@ const MovieDetailScreen = () => {
     const fetchDetails = async () => {
         try {
             let movieRes;
-            if (id.toString().length > 10) { // Custom MongoDB IDs are longer than TMDB IDs
+            if (id && id.toString().length > 10) { // Custom MongoDB IDs are longer than TMDB IDs
                 movieRes = await api.get(`/admin/movies`);
-                const found = movieRes.data.find(m => m._id === id);
-                setMovie({...found, isCustom: true});
+                const found = movieRes.data?.find(m => (m._id === id || m.id === id));
+                if (found) {
+                    setMovie({...found, isCustom: true});
+                } else {
+                    console.error('Custom movie not found');
+                    setMovie(null);
+                }
             } else {
                 movieRes = await api.get(`/movies/${id}`);
                 setMovie(movieRes.data);
@@ -85,7 +90,7 @@ const MovieDetailScreen = () => {
                     </Text>
                     <View style={styles.ratingBox}>
                         <Text style={styles.ratingText}>
-                            {movie.vote_average ? movie.vote_average.toFixed(1) : '8.5'}
+                            {movie.vote_average ? Number(movie.vote_average).toFixed(1) : '8.5'}
                         </Text>
                     </View>
                     <Text style={styles.runtime}>{movie.runtime || movie.duration || '120'}m</Text>
@@ -114,19 +119,19 @@ const MovieDetailScreen = () => {
                     </Text>
                 </Pressable>
 
-                <Text style={styles.overview}>{movie.overview || movie.description}</Text>
+                <Text style={styles.overview}>{movie.overview || movie.description || 'No description available for this title.'}</Text>
 
-                {movie.credits?.cast && (
+                {movie.credits?.cast && movie.credits.cast.length > 0 && (
                     <>
                         <Text style={styles.sectionTitle}>Cast</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             {movie.credits.cast.slice(0, 10).map((person) => (
-                                <View key={person.id} style={styles.castItem}>
+                                <View key={person?.id || Math.random().toString()} style={styles.castItem}>
                                     <Image 
-                                        source={{ uri: `https://image.tmdb.org/t/p/w200${person.profile_path}` }} 
+                                        source={{ uri: person?.profile_path ? `https://image.tmdb.org/t/p/w200${person.profile_path}` : 'https://via.placeholder.com/100x100?text=No+Image' }} 
                                         style={styles.castImage} 
                                     />
-                                    <Text style={styles.castName} numberOfLines={2}>{person.name}</Text>
+                                    <Text style={styles.castName} numberOfLines={2}>{person?.name || 'Actor'}</Text>
                                 </View>
                             ))}
                         </ScrollView>
