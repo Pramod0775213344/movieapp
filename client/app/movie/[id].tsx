@@ -12,31 +12,23 @@ const MovieDetailScreen = () => {
     const [loading, setLoading] = useState(true);
     const [inWatchlist, setInWatchlist] = useState(false);
 
+    const BACKEND_URL = 'https://movieapp-production-8fce.up.railway.app';
+
     useEffect(() => {
         fetchDetails();
     }, [id]);
 
     const fetchDetails = async () => {
         try {
-            let movieRes;
-            if (id && id.toString().length > 10) { // Custom MongoDB IDs are longer than TMDB IDs
-                movieRes = await api.get(`/admin/movies`);
-                const found = movieRes.data?.find(m => (m._id === id || m.id === id));
-                if (found) {
-                    setMovie({...found, isCustom: true});
-                } else {
-                    console.error('Custom movie not found');
-                    setMovie(null);
-                }
-            } else {
-                movieRes = await api.get(`/movies/${id}`);
-                setMovie(movieRes.data);
-            }
+            // Unified route for all movies in the internal system
+            const response = await api.get(`/movies/${id}`);
+            setMovie(response.data);
             
             const watchlistRes = await api.get('/user/watchlist').catch(() => ({ data: [] }));
             setInWatchlist(watchlistRes.data.some(m => m.movieId === id));
         } catch (err) {
-            console.error(err);
+            console.error('Fetch error:', err);
+            setMovie(null);
         } finally {
             setLoading(false);
         }
@@ -44,7 +36,7 @@ const MovieDetailScreen = () => {
 
     const toggleWatchlist = async () => {
         try {
-            const response = await api.post('/user/watchlist/toggle', {
+            await api.post('/user/watchlist/toggle', {
                 movie: {
                     id: id,
                     title: movie.title,
@@ -57,13 +49,12 @@ const MovieDetailScreen = () => {
         }
     };
 
-    const SERVER_IP = '192.168.19.21';
-    const backdropUrl = movie.isCustom
-        ? (movie.poster_url?.startsWith('http') ? movie.poster_url : `http://${SERVER_IP}:5000/${movie.poster_url}`)
-        : `https://image.tmdb.org/t/p/original${movie.backdrop_path || movie.poster_path}`;
-
     if (loading) return <ActivityIndicator size="large" color="#E50914" style={{ flex: 1, backgroundColor: '#000' }} />;
     if (!movie) return <View style={styles.container}><Text style={{ color: '#fff' }}>Movie not found</Text></View>;
+
+    const backdropUrl = movie.isCustom
+        ? (movie.poster_url?.startsWith('http') ? movie.poster_url : `${BACKEND_URL}/${movie.poster_url}`)
+        : `https://image.tmdb.org/t/p/original${movie.backdrop_path || movie.poster_path}`;
 
     return (
         <ScrollView style={styles.container} bounces={false}>

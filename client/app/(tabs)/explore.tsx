@@ -26,10 +26,11 @@ export default function SearchScreen() {
     const performSearch = async () => {
         setLoading(true);
         try {
+            // Searching internal Supabase DB via our backend
             const response = await api.get(`/movies/search`, { params: { query } });
             setResults(response.data);
         } catch (err) {
-            console.error(err);
+            console.error('Search error:', err);
         } finally {
             setLoading(false);
         }
