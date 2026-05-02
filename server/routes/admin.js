@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
-const supabase = require('../supabaseClient');
+const { supabase, supabaseAdmin } = require('../supabaseClient');
 const axios = require('axios');
 const fs = require('fs');
 
@@ -43,7 +43,7 @@ router.post('/make-me-admin', async (req, res) => {
         const { data: { user }, error } = await supabase.auth.getUser(token);
         if (error || !user) throw new Error('Invalid token');
 
-        const { error: updateError } = await supabase
+        const { error: updateError } = await supabaseAdmin
             .from('profiles')
             .update({ is_admin: true })
             .eq('id', user.id);

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const supabase = require('../supabaseClient');
+const { supabase } = require('../supabaseClient');
 
 // Helper to format custom movie to app expectations
 const formatMovie = (m) => ({
