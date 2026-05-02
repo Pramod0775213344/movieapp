@@ -3,11 +3,13 @@ import { StyleSheet, View, Text, ScrollView, Image, Pressable, ActivityIndicator
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Play, Plus, ChevronLeft, Check } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '@/api';
 
 const MovieDetailScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const [movie, setMovie] = useState(null);
     const [loading, setLoading] = useState(true);
     const [inWatchlist, setInWatchlist] = useState(false);
@@ -67,7 +69,7 @@ const MovieDetailScreen = () => {
                     colors={['rgba(0,0,0,0.3)', 'transparent', '#000']}
                     style={styles.gradient}
                 />
-                <Pressable style={styles.backButton} onPress={() => router.back()}>
+                <Pressable style={[styles.backButton, { top: insets.top + 10 }]} onPress={() => router.back()}>
                     <ChevronLeft size={30} color="#fff" />
                 </Pressable>
             </View>
