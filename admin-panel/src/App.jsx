@@ -178,8 +178,29 @@ function App() {
                chunkUploaded = true;
             } catch (chunkErr) {
                retries--;
-               if (retries === 0) throw new Error(`Network completely failed at chunk ${partNumber}`);
-               setUploadInfo(`Network error. Retrying chunk ${partNumber} (${retries} attempts left)...`);
+               
+               // Extract exact error for debugging
+               let exactError = chunkErr.message;
+               if (chunkErr.response) {
+                  // The request was made and the server responded with a status code
+                  // that falls out of the range of 2xx
+                  if (typeof chunkErr.response.data === 'string') {
+                    exactError = `HTTP ${chunkErr.response.status}: ${chunkErr.response.data.substring(0, 50)}`;
+                  } else if (chunkErr.response.data?.message) {
+                    exactError = `HTTP ${chunkErr.response.status}: ${chunkErr.response.data.message}`;
+                  } else {
+                    exactError = `HTTP ${chunkErr.response.status}: ${chunkErr.response.statusText}`;
+                  }
+               } else if (chunkErr.request) {
+                  // The request was made but no response was received
+                  exactError = 'No response from Cloudflare/Server';
+               }
+
+               console.error(`Chunk ${partNumber} Error:`, chunkErr);
+
+               if (retries === 0) throw new Error(`Failed at chunk ${partNumber}. Reason: ${exactError}`);
+               
+               setUploadInfo(`Error: ${exactError}. Retrying chunk ${partNumber} (${retries} attempts left)...`);
                await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retrying
             }
           }
