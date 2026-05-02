@@ -126,7 +126,7 @@ export default function CustomVideoPlayer({ videoUrl, title, onBack }: CustomVid
             {/* Overlay Controls */}
             {showControls && (
                 <Animated.View
-                    style={[styles.controlsOverlay, animatedControlsStyle, { pointerEvents: 'auto' as any }]}
+                    style={[styles.controlsOverlay, animatedControlsStyle]}
                 >
                     {/* Top Bar */}
                     <View style={styles.topBar}>
