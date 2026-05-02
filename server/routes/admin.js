@@ -32,7 +32,45 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 * 1024 } // 50GB limit
 });
 
+
+// Admin Auth Middleware
+const adminAuth = async (req, res, next) => {
+    try {
+        const authHeader = req.header('Authorization');
+        if (!authHeader) return res.status(401).json({ message: 'Missing Authorization Header' });
+
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        
+        if (error || !user) {
+            console.error('Admin Auth Token Error:', error?.message);
+            return res.status(401).json({ message: 'Invalid or expired session' });
+        }
+
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', user.id)
+            .single();
+
+        // Check if user is admin OR if they are the primary owner (Hardcoded override for safety)
+        const isSystemAdmin = user.email && user.email.toLowerCase().trim() === 'admin@gmail.com';
+        
+        if (profile?.is_admin === true || isSystemAdmin) {
+            req.user = user;
+            return next();
+        }
+
+        console.warn('Unauthorized Admin Attempt:', user.email);
+        res.status(403).json({ message: `Access denied. ${user.email} is not an admin.` });
+    } catch (e) {
+        console.error('Admin Auth Crash:', e.message);
+        res.status(500).json({ message: 'Internal Server Error during Auth' });
+    }
+};
+
 // SECRET ROUTE: Make currently logged in user an Admin
+
 // Use this once to set up your admin account!
 router.post('/make-me-admin', async (req, res) => {
     try {
@@ -113,42 +151,6 @@ router.get('/tmdb-search', async (req, res) => {
         res.status(500).json({ message: 'Search failed' });
     }
 });
-
-// Admin Auth Middleware
-const adminAuth = async (req, res, next) => {
-    try {
-        const authHeader = req.header('Authorization');
-        if (!authHeader) return res.status(401).json({ message: 'Missing Authorization Header' });
-
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-        
-        if (error || !user) {
-            console.error('Admin Auth Token Error:', error?.message);
-            return res.status(401).json({ message: 'Invalid or expired session' });
-        }
-
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('is_admin')
-            .eq('id', user.id)
-            .single();
-
-        // Check if user is admin OR if they are the primary owner (Hardcoded override for safety)
-        const isSystemAdmin = user.email && user.email.toLowerCase().trim() === 'admin@gmail.com';
-        
-        if (profile?.is_admin === true || isSystemAdmin) {
-            req.user = user;
-            return next();
-        }
-
-        console.warn('Unauthorized Admin Attempt:', user.email);
-        res.status(403).json({ message: `Access denied. ${user.email} is not an admin.` });
-    } catch (e) {
-        console.error('Admin Auth Crash:', e.message);
-        res.status(500).json({ message: 'Internal Server Error during Auth' });
-    }
-};
 
 // Finalize Movie Metadata (after direct upload)
 router.post('/upload-metadata', adminAuth, async (req, res) => {
